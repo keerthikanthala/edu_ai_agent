@@ -25,3 +25,12 @@ def split_text_into_chunks(text, chunk_size=1000, overlap=200):
 
     return chunks
 
+def retrieve_relevant_chunks(chunks, query, top_k=3):
+    relevant_chunks = []
+
+    for chunk in chunks:
+        if query.lower() in chunk.lower():
+            relevant_chunks.append(chunk)
+
+    return relevant_chunks[:top_k]
+

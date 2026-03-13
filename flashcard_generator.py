@@ -10,4 +10,4 @@ def generate_flashcards(text):
                 "answer": s
             })
 
-    return flashcards
+    return flashcards 

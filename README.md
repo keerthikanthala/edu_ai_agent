@@ -114,3 +114,31 @@ Week 2 – Document Processing and AI Content Generation
 - Add difficulty levels for quizzes
 - Download generated quizzes and flashcards
 - Improve document retrieval using advanced RAG techniques
+
+
+Week 3 Progress (AI Logic Improvements)
+
+Objective
+
+Improve quiz and flashcard generation by enhancing document processing and AI prompt logic.
+Work Completed
+
+1. Document Summary Preview
+Added an AI-generated summary of the uploaded PDF to give users a quick overview of the document.
+
+2. Improved Document Processing
+Implemented text chunking to handle large PDFs and ensure the system uses content from different parts of the document instead of only the first page.
+
+3. Enhanced Quiz Generation
+Improved prompt engineering to support:
+
+selectable difficulty level
+
+customizable number of questions
+
+progressive difficulty (Easy → Medium → Hard)
+
+structured MCQs with answer explanations
+
+4. Flashcard Generation Improvements
+Implemented AI-generated flashcards based on key concepts from the document with structured Front/Back formatting.

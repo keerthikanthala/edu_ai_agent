@@ -115,6 +115,7 @@ Week 2 – Document Processing and AI Content Generation
 - Download generated quizzes and flashcards
 - Improve document retrieval using advanced RAG techniques
 
+---
 
 Week 3 Progress (AI Logic Improvements)
 

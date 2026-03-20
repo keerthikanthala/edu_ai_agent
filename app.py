@@ -54,15 +54,27 @@ if uploaded_files:
 
         context = " ".join(selected_chunks[:5])
 
+     # INPUT BOX TO ASK ANYTHING OTHER THAN QUIZ OR FLASHCARDS
+        question = st.text_input("Ask a question from the document")
+
+    if question:
+      relevant_chunks = retrieve_relevant_chunks(chunks, question)
+      context = " ".join(relevant_chunks)
+
+      answer = generate_quiz(context)
+
+      st.subheader("Answer:")
+      st.write(answer)
+
         # -------- QUIZ SETTINGS --------
 
-        difficulty = st.selectbox(
+    difficulty = st.selectbox(
             "Select Quiz Difficulty",
             ["Easy", "Medium", "Hard"],
             key="quiz_difficulty"
         )
 
-        num_questions = st.slider(
+    num_questions = st.slider(
             "Number of Questions",
             1,
             10,
@@ -71,7 +83,7 @@ if uploaded_files:
 
         # -------- QUIZ --------
 
-        if st.button("Generate Quiz"):
+    if st.button("Generate Quiz"):
 
             with st.spinner("Generating quiz..."):
 
@@ -86,7 +98,7 @@ if uploaded_files:
 
         # -------- FLASHCARDS --------
 
-        if st.button("Generate Flashcards"):
+    if st.button("Generate Flashcards"):
 
             # Decide flashcard count automatically
             if len(chunks) <= 5:

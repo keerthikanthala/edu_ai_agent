@@ -45,7 +45,7 @@ def retrieve_relevant_chunks(chunks, query=None, top_k=5):
         relevant_chunks = []
 
         for chunk in chunks:
-            if query.lower() in chunk.lower():
+             if any(word in chunk.lower() for word in query.lower().split()):
                 relevant_chunks.append(chunk)
 
         if relevant_chunks:

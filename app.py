@@ -154,3 +154,10 @@ if st.session_state.cards:
         if st.button(f"Show Answer {i}"):
             st.write(f"**A:** {card['back']}")
             st.write("---")
+
+    st.download_button(
+    label="Download Flashcards",
+    data=str(st.session_state.cards),
+    file_name="flashcards.txt",
+    mime="text/plain"
+)

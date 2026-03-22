@@ -2,6 +2,7 @@ from pypdf import PdfReader
 from groq import Groq
 from dotenv import load_dotenv
 import os
+import time
 
 load_dotenv()
 
@@ -78,10 +79,47 @@ Document:
 {text}
 """
 
-    completion = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
 
+    for attempt in range(3):
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3
+            )
+            break
+        except Exception:
+            time.sleep(2)
+    else:
+        return "Summary temporarily unavailable due to rate limit."
     return completion.choices[0].message.content
+
+
+def answer_question(context, question):
+
+    prompt = f"""
+You are an AI assistant.
+
+Answer the question ONLY using the provided document context.
+If the answer is not in the document, say "Not found in document."
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+    for attempt in range(3):
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3
+            )
+            return completion.choices[0].message.content
+
+        except Exception:
+            time.sleep(2)
+
+    return "Error: Could not generate answer due to rate limits."

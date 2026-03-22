@@ -1,84 +1,59 @@
 import os
-import random
+import json
+import time
 from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
 
-api_key = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=api_key)
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+def generate_flashcards(text, difficulty="Medium", num_flashcards=12):
 
-def generate_flashcards(text, difficulty="Medium", num_flashcards=10):
+    # Split text into smaller parts
+    chunk_size = 1500
+    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
-    # If context came as chunks
-    if isinstance(text, list):
-        text = " ".join([str(t) for t in text])
+    all_cards = []
 
-    # ---- Sample text from different parts of document ----
-    sections = []
+    for chunk in chunks[:3]:  # limit to 3 chunks to avoid rate limit
 
-    if len(text) > 6000:
-        step = len(text) // 4
+        prompt = f"""
+Create 4 flashcards from this text.
 
-        sections.append(text[0:1500])                 # beginning
-        sections.append(text[step:step+1500])         # early middle
-        sections.append(text[step*2:step*2+1500])     # late middle
-        sections.append(text[-1500:])                 # end
+Return ONLY JSON:
 
-        text = " ".join(sections)
-    else:
-        text = text[:4000]
-    # -----------------------------------------------------
-
-    difficulty_rules = {
-        "Easy": "Generate definition-based flashcards.",
-        "Medium": "Generate conceptual understanding flashcards.",
-        "Hard": "Generate reasoning or application-based flashcards."
-    }
-
-    difficulty_instruction = difficulty_rules.get(difficulty, "")
-
-    prompt = f"""
-You are an AI study assistant.
-
-Create {num_flashcards} flashcards from the study material.
-
-Difficulty: {difficulty}
-Instruction: {difficulty_instruction}
-
-Rules:
-- Cover concepts from different parts of the document.
-- Avoid repeating the same topic.
-- Keep answers short and clear.
-
-Format exactly like this:
-
-Flashcard 1
-Front: question
-Back: answer
-
-Flashcard 2
-Front: question
-Back: answer
-
-Front and Back must always be on separate lines.
+[
+  {{
+    "front": "question",
+    "back": "answer"
+  }}
+]
 
 Study Material:
-{text}
+{chunk}
 """
 
-    completion = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
-    )
+        # retry logic
+        for attempt in range(3):
+            try:
+                completion = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5
+                )
+                break
+            except Exception:
+                time.sleep(2)
+        else:
+            continue
 
-    result = completion.choices[0].message.content
+        result = completion.choices[0].message.content
 
-    # Force formatting if the model compresses lines
-    result = result.replace(" Flashcard", "\nFlashcard")
-    result = result.replace(" Question:", "\nFront:")
-    result = result.replace(" Answer:", "\nBack:")
+        try:
+            cards = json.loads(result)
+            all_cards.extend(cards)
+        except:
+            continue
 
-    return result
+    return all_cards[:num_flashcards]

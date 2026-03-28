@@ -3,6 +3,7 @@ from text_processor import extract_text_from_pdf, split_text_into_chunks, summar
 from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
 from text_processor import answer_question
+from rag import get_relevant_chunks
 
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
 
@@ -52,24 +53,34 @@ if "summary" not in st.session_state:
 summary = st.session_state.summary
 st.write(summary)
 
+topic = st.text_input("Enter topic (optional)", placeholder="enter any topic and click 'Generate Quiz'")
+st.caption("👉 Enter a topic and click 'Generate Quiz' to focus questions on that topic")
 
 # ---------------- CONTEXT CREATION ----------------
 
-context = " ".join(chunks[::max(1, len(chunks)//8)])
+# Default query for general tasks
+query = topic if topic.strip() != "" else "important concepts"
+relevant_chunks = get_relevant_chunks(chunks, query)
+context = " ".join(relevant_chunks)
 
 # ---------------- Q&A SECTION ----------------
 
 st.subheader("❓ Ask Questions from Document")
 
-user_question = st.text_input("Type your question", key="qa_input")
+user_question = st.text_input("Type your question")
 
-if st.button("Get Answer", key="qa_button"):
+if st.button("Get Answer"):
 
     if user_question.strip() == "":
         st.warning("Please enter a question")
     else:
         with st.spinner("Thinking..."):
-            answer = answer_question(context, user_question)
+
+            # RAG LOGIC
+            qa_chunks = get_relevant_chunks(chunks, user_question)
+            qa_context = " ".join(qa_chunks)
+
+            answer = answer_question(qa_context, user_question)
 
         st.subheader("📌 Answer")
         st.write(answer)
@@ -97,8 +108,17 @@ if "quiz" not in st.session_state:
 
 if st.button("Generate Quiz"):
     with st.spinner("Generating quiz..."):
+
+        # use topic if given
+        query = topic if topic.strip() != "" else "important concepts"
+
+        # get relevant chunks
+        quiz_chunks = get_relevant_chunks(chunks, query)
+        quiz_context = " ".join(quiz_chunks)
+
+        # generate quiz from better context
         st.session_state.quiz = generate_quiz(
-            context,
+            quiz_context,
             difficulty,
             num_questions
         )

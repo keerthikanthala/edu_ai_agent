@@ -1,183 +1,190 @@
 import streamlit as st
-from text_processor import extract_text_from_pdf, split_text_into_chunks, summarize_document
+from text_processor import extract_text_from_pdf, split_text_into_chunks, summarize_document, answer_question
 from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
-from text_processor import answer_question
 from rag import get_relevant_chunks
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
 
-st.title("📚 Educational Content Generator AI")
-st.write("Welcome to your AI Study Assistant")
+# ---------------- PERFECT CONTRAST UI ----------------
+st.markdown("""
+<style>
+
+/* Background */
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+}
+
+/* Text visibility FIX */
+h1, h2, h3, h4, h5, h6, p, label, span, div {
+    color: #f8fafc !important;
+}
+
+/* Subtext */
+small, .stCaption {
+    color: #cbd5e1 !important;
+}
+
+/* Inputs FIX */
+.stTextInput input, .stSelectbox div, .stSlider {
+    background: #1e293b !important;
+    color: white !important;
+    border-radius: 10px !important;
+}
+
+/* Radio buttons FIX */
+.stRadio label {
+    color: #e2e8f0 !important;
+    font-size: 16px;
+}
+
+/* Buttons */
+.stButton button {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    color: white;
+    border-radius: 12px;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 500;
+}
+
+/* File uploader FIX */
+[data-testid="stFileUploader"] button {
+    background: rgba(255,255,255,0.2) !important;
+    color: white !important;
+    border: 1px solid rgba(255,255,255,0.4) !important;
+}
+
+/* Cards */
+.glass {
+    background: rgba(255,255,255,0.08);
+    padding: 25px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Answer box */
+.answer-box {
+    background: #14532d;
+    padding: 15px;
+    border-radius: 12px;
+    color: white;
+    margin-top: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- HERO ----------------
+st.markdown("<h1 style='text-align:center;'>📚 AI Study Assistant</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;'>Learn faster. Study smarter.</p>", unsafe_allow_html=True)
+
+# ---------------- FEATURES ----------------
+col1, col2, col3 = st.columns(3)
+
+col1.markdown('<div class="glass"><h4>🧠 Quiz</h4></div>', unsafe_allow_html=True)
+col2.markdown('<div class="glass"><h4>📄 Summary</h4></div>', unsafe_allow_html=True)
+col3.markdown('<div class="glass"><h4>🧾 Flashcards</h4></div>', unsafe_allow_html=True)
 
 # ---------------- FILE UPLOAD ----------------
-
-uploaded_files = st.file_uploader(
-    "Upload PDF documents",
-    type=["pdf"],
-    accept_multiple_files=True
-)
+uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 if not uploaded_files:
-    st.warning("Please upload at least one PDF file")
+    st.warning("Upload a PDF to continue")
     st.stop()
 
-# ---------------- TEXT EXTRACTION ----------------
-
-all_pages = []
-
+# ---------------- PROCESS ----------------
+all_text = ""
 for file in uploaded_files:
-    pages = extract_text_from_pdf(file)
-    all_pages.extend(pages)
+    all_text += " ".join(extract_text_from_pdf(file))
 
-if not all_pages:
-    st.error("No text could be extracted from the uploaded PDFs")
-    st.stop()
-
-all_text = " ".join(all_pages)
 chunks = split_text_into_chunks(all_text)
 
-# ---------------- DOCUMENT INFO ----------------
-
-st.subheader("📊 Document Statistics")
-st.write(f"Total characters: {len(all_text)}")
-st.write(f"Total chunks created: {len(chunks)}")
-
 # ---------------- SUMMARY ----------------
-
-st.subheader("📄 Document Summary")
+st.subheader("📄 Summary")
 
 if "summary" not in st.session_state:
     st.session_state.summary = summarize_document(all_text)
 
-summary = st.session_state.summary
-st.write(summary)
+st.markdown(f'<div class="glass">{st.session_state.summary}</div>', unsafe_allow_html=True)
 
-topic = st.text_input("Enter topic (optional)", placeholder="enter any topic and click generate quiz")
-st.caption("👉 Enter a topic and click 'Generate Quiz' to focus questions on that topic")
+# ---------------- CONTEXT ----------------
+topic = st.text_input("Enter topic (optional)")
+query = topic if topic else "important concepts"
+context = " ".join(get_relevant_chunks(chunks, query))
 
-# ---------------- CONTEXT CREATION ----------------
+# ---------------- Q&A ----------------
+st.subheader("❓ Ask Question")
 
-# Default query for general tasks
-query = topic if topic.strip() != "" else "important concepts"
-relevant_chunks = get_relevant_chunks(chunks, query)
-context = " ".join(relevant_chunks)
-
-# ---------------- Q&A SECTION ----------------
-
-st.subheader("❓ Ask Questions from Document")
-
-user_question = st.text_input("Type your question")
+q = st.text_input("Type your question")
 
 if st.button("Get Answer"):
+    ans = answer_question(context, q)
+    st.markdown(f'<div class="answer-box">{ans}</div>', unsafe_allow_html=True)
 
-    if user_question.strip() == "":
-        st.warning("Please enter a question")
-    else:
-        with st.spinner("Thinking..."):
+# ---------------- QUIZ ----------------
+st.subheader("🧠 Quiz")
 
-            # RAG LOGIC
-            qa_chunks = get_relevant_chunks(chunks, user_question)
-            qa_context = " ".join(qa_chunks)
-
-            answer = answer_question(qa_context, user_question)
-
-        st.subheader("📌 Answer")
-        st.write(answer)
-
-# ---------------- QUIZ SETTINGS ----------------
-
-st.subheader("🧠 Quiz Settings")
-
-difficulty = st.selectbox(
-    "Select Quiz Difficulty",
-    ["Easy", "Medium", "Hard"]
-)
-
-num_questions = st.slider(
-    "Number of Questions",
-    1,
-    10,
-    3
-)
-
-# ---------------- QUIZ SECTION ----------------
+difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
+num_q = st.slider("Questions", 1, 10, 3)
 
 if "quiz" not in st.session_state:
     st.session_state.quiz = None
 
 if st.button("Generate Quiz"):
-    with st.spinner("Generating quiz..."):
-
-        # use topic if given
-        query = topic if topic.strip() != "" else "important concepts"
-
-        # get relevant chunks
-        quiz_chunks = get_relevant_chunks(chunks, query)
-        quiz_context = " ".join(quiz_chunks)
-
-        # generate quiz from better context
-        st.session_state.quiz = generate_quiz(
-            quiz_context,
-            difficulty,
-            num_questions
-        )
+    st.session_state.quiz = generate_quiz(context, difficulty, num_q)
 
 if st.session_state.quiz:
-    st.subheader("📝 Take the Quiz")
-
-    user_answers = []
+    answers = []
 
     for i, q in enumerate(st.session_state.quiz):
-        ans = st.radio(
-            q["question"],
-            q["options"],
-            key=f"q_{i}"
-        )
-        user_answers.append(ans)
+        st.markdown(f"### Q{i+1}. {q['question']}")
+        ans = st.radio("Select:", q["options"], key=f"q_{i}")
+        answers.append(ans)
 
     if st.button("Submit Quiz"):
+
         score = 0
+        total = len(st.session_state.quiz)
 
         for i, q in enumerate(st.session_state.quiz):
-            if user_answers[i] == q["answer"]:
+            correct = q["options"][ord(q["answer"]) - 65]
+            if answers[i] == correct:
                 score += 1
 
-        st.success(f"🎯 Score: {score}/{len(st.session_state.quiz)}")
+        # 🎉 CONFETTI FIX
+        if score == total:
+            st.balloons()
 
-        st.subheader("📘 Explanations")
+        st.success(f"🎯 Score: {score}/{total}")
 
-        for q in st.session_state.quiz:
-            st.write(f"✅ Correct Answer: {q['answer']}")
-            st.write(f"💡 {q['explanation']}")
-            st.write("---")
-
-# ---------------- FLASHCARDS SECTION ----------------
+# ---------------- FLASHCARDS ----------------
+st.subheader("🧾 Flashcards")
 
 if "cards" not in st.session_state:
-    st.session_state.cards = None
+    st.session_state.cards = []
+    st.session_state.index = 0
 
 if st.button("Generate Flashcards"):
-    with st.spinner("Generating flashcards..."):
-        st.session_state.cards = generate_flashcards(
-            context,
-            difficulty,
-            12
-        )
+    st.session_state.cards = generate_flashcards(context, difficulty, 10)
+    st.session_state.index = 0
 
 if st.session_state.cards:
-    st.subheader("🧾 Flashcards")
+    card = st.session_state.cards[st.session_state.index]
 
-    for i, card in enumerate(st.session_state.cards):
-        st.write(f"**Q:** {card['front']}")
+    st.markdown(f"### Card {st.session_state.index+1}/{len(st.session_state.cards)}")
 
-        if st.button(f"Show Answer {i}"):
-            st.write(f"**A:** {card['back']}")
-            st.write("---")
+    st.markdown(f'<div class="glass">{card["front"]}</div>', unsafe_allow_html=True)
 
-    st.download_button(
-    label="Download Flashcards",
-    data=str(st.session_state.cards),
-    file_name="flashcards.txt",
-    mime="text/plain"
-)
+    if st.button("Show Answer"):
+        st.markdown(f'<div class="answer-box">{card["back"]}</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    if col1.button("Next"):
+        if st.session_state.index < len(st.session_state.cards) - 1:
+            st.session_state.index += 1
+
+    if col2.button("Restart"):
+        st.session_state.index = 0

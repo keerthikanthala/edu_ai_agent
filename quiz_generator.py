@@ -18,7 +18,7 @@ def generate_quiz(text, difficulty="Medium", num_questions=3):
 
     instruction = difficulty_rules.get(difficulty, "")
 
-
+    # limit text size
     if len(text) > 3000:
         start = random.randint(0, len(text) - 3000)
         text = text[start:start + 3000]
@@ -49,15 +49,25 @@ Study Material:
 {text}
 """
 
-    completion = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.5
-    )
-
-    result = completion.choices[0].message.content
-
     try:
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
+        )
+
+        result = completion.choices[0].message.content
+
         return json.loads(result)
-    except:
-        return []
+
+    except Exception as e:
+        # 🔥 FALLBACK (IMPORTANT)
+        return [
+            {
+                "question": f"Sample Question {i+1}",
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "answer": "Option A",
+                "explanation": "This is a fallback explanation because API failed."
+            }
+            for i in range(num_questions)
+        ]

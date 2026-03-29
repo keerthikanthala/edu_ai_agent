@@ -10,13 +10,12 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def generate_flashcards(text, difficulty="Medium", num_flashcards=12):
 
-    # Split text into smaller parts
     chunk_size = 1500
     chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
 
     all_cards = []
 
-    for chunk in chunks[:3]:  # limit to 3 chunks to avoid rate limit
+    for chunk in chunks[:3]:  # limit to avoid rate limit
 
         prompt = f"""
 Create 4 flashcards from this text.

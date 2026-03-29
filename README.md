@@ -156,3 +156,13 @@ Week 4 Progress
 4. Fixed API issues (rate limit handling, optimized input size)
 5. Improved content coverage (questions from multiple parts of document)
    Enhanced UI using tabs (Summary, Q&A, Quiz, Flashcards)
+
+ Week 5 Progress
+ 1.Designed Apple-style UI using Streamlit + custom CSS
+2.Implemented glassmorphism (blur cards, gradients)
+3.Fixed text contrast and visibility issues
+4.Styled buttons, file uploader, inputs, and radio options
+5.Removed duplicate UI and fixed layout spacing
+6.Improved overall user experience and consistency
+7.Managed UI flow using Streamlit session state
+8.Added confetti animation for full score

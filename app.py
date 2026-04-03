@@ -3,6 +3,20 @@ from text_processor import extract_text_from_pdf, split_text_into_chunks, summar
 from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
 from rag import get_relevant_chunks
+from database import log_progress
+from database import init_db
+init_db()
+from database import init_db
+import sqlite3
+
+# Initialize and clear progress table at startup
+init_db()
+conn = sqlite3.connect("study.db")
+c = conn.cursor()
+c.execute("DELETE FROM progress")  # clears old records
+conn.commit()
+conn.close()
+
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
@@ -120,8 +134,15 @@ st.subheader("❓ Ask Question")
 q = st.text_input("Type your question")
 
 if st.button("Get Answer"):
-    ans = answer_question(context, q)
+    qa_chunks = get_relevant_chunks(chunks, q)
+    qa_context = " ".join(qa_chunks)
+
+    ans = answer_question(qa_context, q)
     st.markdown(f'<div class="answer-box">{ans}</div>', unsafe_allow_html=True)
+    st.subheader("📄 Source")
+
+    for chunk in qa_chunks:
+        st.markdown(f"<div class='glass'>{chunk[:200]}...</div>", unsafe_allow_html=True)
 
 # ---------------- QUIZ ----------------
 st.subheader("🧠 Quiz")
@@ -133,7 +154,10 @@ if "quiz" not in st.session_state:
     st.session_state.quiz = None
 
 if st.button("Generate Quiz"):
-    st.session_state.quiz = generate_quiz(context, difficulty, num_q)
+    quiz_chunks = get_relevant_chunks(chunks, query)
+    quiz_context = " ".join(quiz_chunks)
+
+    st.session_state.quiz = generate_quiz(quiz_context, difficulty, num_q)
 
 if st.session_state.quiz:
     answers = []
@@ -158,6 +182,29 @@ if st.session_state.quiz:
             st.balloons()
 
         st.success(f"🎯 Score: {score}/{total}")
+        log_progress("quiz", score, total)
+
+# ---------------- PERFORMANCE ANALYTICS ----------------
+from database import get_progress
+
+progress = get_progress()
+if progress:
+    st.subheader("📊 Performance Analytics")
+
+    for feature, score, total in progress:
+        if total > 0:  # avoid division by zero
+            percent = round((score / total) * 100, 1)
+            st.write(f"{feature}: {score}/{total} ({percent}%)")
+
+            # Motivational feedback
+            if percent < 50:
+                st.warning("Needs improvement — review flashcards daily.")
+            elif percent < 80:
+                st.info("Good progress — keep practicing quizzes regularly.")
+            else:
+                st.success("Excellent — you’re ready for harder topics!")
+
+
 
 # ---------------- FLASHCARDS ----------------
 st.subheader("🧾 Flashcards")

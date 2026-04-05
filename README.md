@@ -197,3 +197,13 @@ Week 4 Progress
 - Tracks quiz scores, percentages, difficulty, topics, and timestamps.
 - Provides motivational feedback (needs improvement / good progress / excellent).
 - Discussed adding visual charts (line graphs, trends) for future enhancement.
+🔹 RAG Pipeline Upgrade
+- Integrated SentenceTransformer embeddings for semantic search.
+- Added FAISS index for efficient retrieval.
+- Implemented CrossEncoder re-ranking to ensure the most relevant chunks are used for answers.
+- Optimized with caching so the app runs faster and avoids rebuilding the index each query.
+🔹 Study Tracking & Analytics
+- Added a SQLite database to log quiz scores each run.
+- Built a performance analytics section that shows:
+- Score and percentage for each quiz attempt.
+- Motivational feedback messages (e.g., “Needs improvement”, “Good progress”, “Excellent”).

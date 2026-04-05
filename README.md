@@ -144,6 +144,7 @@ structured MCQs with answer explanations
 4. Flashcard Generation Improvements
 Implemented AI-generated flashcards based on key concepts from the document with structured Front/Back formatting.
 
+--- 
 
 Week 4 Progress
 
@@ -157,6 +158,8 @@ Week 4 Progress
 5. Improved content coverage (questions from multiple parts of document)
    Enhanced UI using tabs (Summary, Q&A, Quiz, Flashcards)
 
+---
+
  Week 5 Progress
  1.Designed Apple-style UI using Streamlit + custom CSS
 2.Implemented glassmorphism (blur cards, gradients)
@@ -166,3 +169,31 @@ Week 4 Progress
 6.Improved overall user experience and consistency
 7.Managed UI flow using Streamlit session state
 8.Added confetti animation for full score
+
+---
+
+📚 Week 6 Summary 
+🛠️ Technical Fixes
+- Resolved multiple Streamlit errors:
+- Button conflicts inside forms.
+- Deprecated API (experimental_rerun → rerun).
+- Session state handling for quiz answers and flashcards.
+- Cleaned up duplicate flashcard generation buttons for clarity.
+🧠 Quiz System
+- Built a timed quiz feature:
+- Timer scales with number of questions (30s per question).
+- Auto‑submission when time runs out.
+- Restored explanations after answers for deeper learning.
+- Added recommended flashcards tied to wrong answers.
+- Structured quiz flow: generate → countdown → submit → review → targeted practice.
+📝 Flashcards
+- Organized into two clear modes:
+- Overall Flashcards for general study.
+- Recommended Flashcards for weak areas after quizzes.
+- Added navigation (Next, Restart) and review logging (I knew this / I didn’t know).
+- Ensured flashcards integrate smoothly with quiz results.
+📊 Performance & Analytics
+- Designed a Performance Analytics block:
+- Tracks quiz scores, percentages, difficulty, topics, and timestamps.
+- Provides motivational feedback (needs improvement / good progress / excellent).
+- Discussed adding visual charts (line graphs, trends) for future enhancement.

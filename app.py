@@ -1,21 +1,12 @@
 import streamlit as st
+import time
 from text_processor import extract_text_from_pdf, split_text_into_chunks, summarize_document, answer_question
 from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
 from rag import get_relevant_chunks
-from database import log_progress
-from database import init_db
-init_db()
-from database import init_db
-import sqlite3
+from database import init_db, log_progress, log_flashcard_review, get_progress
 
-# Initialize and clear progress table at startup
 init_db()
-conn = sqlite3.connect("study.db")
-c = conn.cursor()
-c.execute("DELETE FROM progress")  # clears old records
-conn.commit()
-conn.close()
 
 
 # ---------------- PAGE CONFIG ----------------
@@ -146,92 +137,151 @@ if st.button("Get Answer"):
 
 # ---------------- QUIZ ----------------
 st.subheader("🧠 Quiz")
-
 difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
 num_q = st.slider("Questions", 1, 10, 3)
 
 if "quiz" not in st.session_state:
     st.session_state.quiz = None
+    st.session_state.answers = {}
+    st.session_state.quiz_start = None
+    st.session_state.quiz_duration = None
+    st.session_state.quiz_result = None
 
-if st.button("Generate Quiz"):
+# Generate quiz with timer
+if st.button("Generate Timed Quiz"):
     quiz_chunks = get_relevant_chunks(chunks, query)
     quiz_context = " ".join(quiz_chunks)
-
     st.session_state.quiz = generate_quiz(quiz_context, difficulty, num_q)
+    st.session_state.quiz_start = time.time()
+    st.session_state.quiz_duration = num_q * 30  # 30 seconds per question
+    st.session_state.answers = {}
+    st.session_state.quiz_result = None
 
-if st.session_state.quiz:
-    answers = []
+# Show quiz if generated
+if st.session_state.quiz and not st.session_state.quiz_result:
+    elapsed = int(time.time() - st.session_state.quiz_start)
+    remaining = st.session_state.quiz_duration - elapsed
+    if remaining > 0:
+        st.warning(f"⏱️ Time left: {remaining} seconds")
+    else:
+        st.error("Time is up! Auto‑submitting your answers...")
+        submitted = True
+    submitted = False
 
-    for i, q in enumerate(st.session_state.quiz):
-        st.markdown(f"### Q{i+1}. {q['question']}")
-        ans = st.radio("Select:", q["options"], key=f"q_{i}")
-        answers.append(ans)
-
-    if st.button("Submit Quiz"):
-
-        score = 0
-        total = len(st.session_state.quiz)
-
+    with st.form(key="quiz_form"):
         for i, q in enumerate(st.session_state.quiz):
-            correct = q["options"][ord(q["answer"]) - 65]
-            if answers[i] == correct:
-                score += 1
+            st.markdown(f"### Q{i+1}. {q['question']}")
+            labels = [f"{j+1}. {opt}" for j, opt in enumerate(q["options"])]
+            choice = st.radio("", labels, key=f"q_{i}")
+            st.session_state.answers[f"q_{i}"] = int(choice.split(".")[0]) - 1
+        submitted = st.form_submit_button("Submit Quiz") or submitted
 
-        # 🎉 CONFETTI FIX
-        if score == total:
-            st.balloons()
+        if submitted and not st.session_state.quiz_result:
+            score = 0
+            total = len(st.session_state.quiz)
+            wrong_items = []
+            for i, q in enumerate(st.session_state.quiz):
+                selected = st.session_state.answers.get(f"q_{i}", None)
+                if selected == q.get("correct_index"):
+                    score += 1
+                else:
+                    wrong_items.append((q, selected))
 
-        st.success(f"🎯 Score: {score}/{total}")
-        log_progress("quiz", score, total)
+            st.session_state.quiz_result = {
+                "score": score,
+                "total": total,
+                "wrong_items": wrong_items,
+            }
+            log_progress("quiz", score, total, difficulty=difficulty, topic=query)
+
+# ---------------- RESULTS + EXPLANATIONS ----------------
+if st.session_state.get("quiz_result"):
+    result = st.session_state.quiz_result
+    st.success(f"🎯 Score: {result['score']}/{result['total']}")
+
+    if result["wrong_items"]:
+        st.subheader("Review")
+        for q, sel in result["wrong_items"]:
+            st.markdown(f"**Q:** {q['question']}")
+            st.markdown(f"**Your answer:** {q['options'][sel] if sel is not None else 'No answer'}")
+            st.markdown(f"**Correct answer:** {q['options'][q['correct_index']]}")
+            if q.get("explanation"):
+                st.markdown(f"**Explanation:** {q['explanation']}")
+            st.markdown("---")
+
+        # Recommended flashcards
+        st.subheader("🔁 Recommended Flashcards")
+        wrong_text = " ".join([q["question"] for q, _ in result["wrong_items"]])
+        recommended_cards = generate_flashcards(wrong_text, difficulty, 5)
+        for idx, card in enumerate(recommended_cards):
+            st.markdown(f"**Q:** {card['front']}")
+            if st.button("Show Answer", key=f"rec_{idx}"):
+                st.markdown(f"**A:** {card['back']}")
+    else:
+        st.info("✅ You got everything correct! No recommended flashcards needed.")
+
+# ---------------- OVERALL FLASHCARDS ----------------
+st.subheader("📚 Overall Flashcards")
+if "cards" not in st.session_state:
+    st.session_state.cards = []
+    st.session_state.card_index = 0
+    st.session_state.show_answer = False
+
+if st.button("Generate Overall Flashcards"):
+    st.session_state.cards = generate_flashcards(context, difficulty, 10)
+    st.session_state.card_index = 0
+    st.session_state.show_answer = False
+
+if st.session_state.cards:
+    card = st.session_state.cards[st.session_state.card_index]
+    st.markdown(f"### Card {st.session_state.card_index+1}/{len(st.session_state.cards)}")
+    st.markdown(f'<div class="glass">{card["front"]}</div>', unsafe_allow_html=True)
+
+    if st.button("Show Answer"):
+        st.session_state.show_answer = True
+        log_flashcard_review(card["front"], card["back"], correct=False)
+
+    if st.session_state.show_answer:
+        st.markdown(f'<div class="answer-box">{card["back"]}</div>', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        if col1.button("I knew this", key="knew"):
+            log_flashcard_review(card["front"], card["back"], correct=True)
+            st.session_state.show_answer = False
+            if st.session_state.card_index < len(st.session_state.cards) - 1:
+                st.session_state.card_index += 1
+        if col2.button("I didn't know", key="didnt"):
+            log_flashcard_review(card["front"], card["back"], correct=False)
+            st.session_state.show_answer = False
+            if st.session_state.card_index < len(st.session_state.cards) - 1:
+                st.session_state.card_index += 1
+        if col3.button("Restart", key="restart"):
+            st.session_state.card_index = 0
+            st.session_state.show_answer = False
+    else:
+        coln, coln2 = st.columns(2)
+        if coln.button("Next", key="next_no_show"):
+            if st.session_state.card_index < len(st.session_state.cards) - 1:
+                st.session_state.card_index += 1
+        if coln2.button("Restart", key="restart_no_show"):
+            st.session_state.card_index = 0
+            st.session_state.show_answer = False            
 
 # ---------------- PERFORMANCE ANALYTICS ----------------
 from database import get_progress
 
 progress = get_progress()
 if progress:
-    st.subheader("📊 Performance Analytics")
+        st.subheader("📊 Performance Analytics")
 
-    for feature, score, total in progress:
-        if total > 0:  # avoid division by zero
-            percent = round((score / total) * 100, 1)
-            st.write(f"{feature}: {score}/{total} ({percent}%)")
+        for feature, score, total, difficulty_meta, topic_meta, timestamp in progress:
+            if total > 0:
+                percent = round((score / total) * 100, 1)
+                st.write(f"{feature} ({difficulty_meta or 'N/A'}) - {score}/{total} ({percent}%) — {topic_meta or ''} — {timestamp}")
 
-            # Motivational feedback
-            if percent < 50:
-                st.warning("Needs improvement — review flashcards daily.")
-            elif percent < 80:
-                st.info("Good progress — keep practicing quizzes regularly.")
-            else:
-                st.success("Excellent — you’re ready for harder topics!")
+                if percent < 50:
+                    st.warning("Needs improvement — review flashcards daily.")
+                elif percent < 80:
+                    st.info("Good progress — keep practicing quizzes regularly.")
+                else:
+                    st.success("Excellent — you’re ready for harder topics!")
 
-
-
-# ---------------- FLASHCARDS ----------------
-st.subheader("🧾 Flashcards")
-
-if "cards" not in st.session_state:
-    st.session_state.cards = []
-    st.session_state.index = 0
-
-if st.button("Generate Flashcards"):
-    st.session_state.cards = generate_flashcards(context, difficulty, 10)
-    st.session_state.index = 0
-
-if st.session_state.cards:
-    card = st.session_state.cards[st.session_state.index]
-
-    st.markdown(f"### Card {st.session_state.index+1}/{len(st.session_state.cards)}")
-
-    st.markdown(f'<div class="glass">{card["front"]}</div>', unsafe_allow_html=True)
-
-    if st.button("Show Answer"):
-        st.markdown(f'<div class="answer-box">{card["back"]}</div>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-
-    if col1.button("Next"):
-        if st.session_state.index < len(st.session_state.cards) - 1:
-            st.session_state.index += 1
-
-    if col2.button("Restart"):
-        st.session_state.index = 0

@@ -5,9 +5,9 @@ from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
 from rag import get_relevant_chunks
 from database import init_db, log_progress, log_flashcard_review, get_progress
+from gtts import gTTS
 
 init_db()
-
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
@@ -70,7 +70,13 @@ small, .stCaption {
 }
 
 /* Answer box */
-.answer-box {
+.ans
+if st.button("Process Voice Query"):
+    # Replace this with actual recognized text from speech-to-text
+    query = "recognized_text_here"
+
+    # Using the same chunks variable you already defined
+    qa_chunks = get_relevanwer-box {
     background: #14532d;
     padding: 15px;
     border-radius: 12px;
@@ -114,6 +120,15 @@ if "summary" not in st.session_state:
 
 st.markdown(f'<div class="glass">{st.session_state.summary}</div>', unsafe_allow_html=True)
 
+# ---------------- AUDIO SUMMARY ----------------
+st.subheader("🔊 Listen to Summary")
+
+if st.button("Play Summary Audio"):
+    summary_text = st.session_state.summary
+    tts = gTTS(summary_text)
+    tts.save("summary.mp3")
+    st.audio("summary.mp3")
+
 # ---------------- CONTEXT ----------------
 topic = st.text_input("Enter topic (optional)")
 query = topic if topic else "important concepts"
@@ -134,7 +149,7 @@ if st.button("Get Answer"):
 
     for chunk in qa_chunks:
         st.markdown(f"<div class='glass'>{chunk[:200]}...</div>", unsafe_allow_html=True)
-
+ 
 # ---------------- QUIZ ----------------
 st.subheader("🧠 Quiz")
 difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])

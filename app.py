@@ -70,11 +70,7 @@ small, .stCaption {
 }
 
 /* Answer box */
-.ans
-if st.button("Process Voice Query"):
-    # Replace this with actual recognized text from speech-to-text
-    query = "recognized_text_here"
-
+            
     # Using the same chunks variable you already defined
     qa_chunks = get_relevanwer-box {
     background: #14532d;
@@ -140,16 +136,30 @@ st.subheader("❓ Ask Question")
 q = st.text_input("Type your question")
 
 if st.button("Get Answer"):
-    qa_chunks = get_relevant_chunks(chunks, q)
-    qa_context = " ".join(qa_chunks)
+    try:
+        qa_chunks = get_relevant_chunks(chunks, q)
+        qa_context = " ".join(qa_chunks)
+        ans = answer_question(qa_context, q)
 
-    ans = answer_question(qa_context, q)
-    st.markdown(f'<div class="answer-box">{ans}</div>', unsafe_allow_html=True)
-    st.subheader("📄 Source")
+        # Save answer in session state so it persists
+        st.session_state.last_answer = ans
 
-    for chunk in qa_chunks:
-        st.markdown(f"<div class='glass'>{chunk[:200]}...</div>", unsafe_allow_html=True)
- 
+        st.markdown(f'<div class="answer-box">{ans}</div>', unsafe_allow_html=True)
+
+        st.subheader("📄 Source")
+        for chunk in qa_chunks:
+            st.markdown(f"<div class='glass'>{chunk[:200]}...</div>", unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"⚠️ Could not generate answer: {e}")
+
+# ---- Text-to-Speech for Q&A Answer ----
+if "last_answer" in st.session_state and st.session_state.last_answer:
+    if st.button("Play Answer Audio"):
+        tts = gTTS(st.session_state.last_answer)
+        tts.save("answer.mp3")
+        st.audio("answer.mp3")
+
 # ---------------- QUIZ ----------------
 st.subheader("🧠 Quiz")
 difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
@@ -282,21 +292,27 @@ if st.session_state.cards:
             st.session_state.show_answer = False            
 
 # ---------------- PERFORMANCE ANALYTICS ----------------
-from database import get_progress
+from database import get_progress, clear_progress
+
+st.subheader("📊 Performance Analytics")
+
+# Add reset button
+if st.button("Reset Performance Analytics"):
+    clear_progress()
+    st.success("Performance data cleared!")
 
 progress = get_progress()
 if progress:
-        st.subheader("📊 Performance Analytics")
+    for feature, score, total, difficulty_meta, topic_meta, timestamp in progress:
+        if total > 0:
+            percent = round((score / total) * 100, 1)
+            st.write(f"{feature} ({difficulty_meta or 'N/A'}) - {score}/{total} ({percent}%) — {topic_meta or ''} — {timestamp}")
 
-        for feature, score, total, difficulty_meta, topic_meta, timestamp in progress:
-            if total > 0:
-                percent = round((score / total) * 100, 1)
-                st.write(f"{feature} ({difficulty_meta or 'N/A'}) - {score}/{total} ({percent}%) — {topic_meta or ''} — {timestamp}")
-
-                if percent < 50:
-                    st.warning("Needs improvement — review flashcards daily.")
-                elif percent < 80:
-                    st.info("Good progress — keep practicing quizzes regularly.")
-                else:
-                    st.success("Excellent — you’re ready for harder topics!")
-
+            if percent < 50:
+                st.warning("Needs improvement — review flashcards daily.")
+            elif percent < 80:
+                st.info("Good progress — keep practicing quizzes regularly.")
+            else:
+                st.success("Excellent — you’re ready for harder topics!")
+else:
+    st.info("No performance data yet. Try a quiz or flashcards to see progress here.")

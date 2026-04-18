@@ -1,4 +1,3 @@
-# database.py
 import sqlite3
 from datetime import datetime
 
@@ -56,3 +55,10 @@ def get_progress(limit=50):
     rows = c.fetchall()
     conn.close()
     return rows
+
+def clear_progress():
+    conn = sqlite3.connect(DB_PATH)   # ✅ use study.db
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM progress")
+    conn.commit()
+    conn.close()

@@ -1,5 +1,8 @@
+from gtts import gTTS
 import streamlit as st
 import time
+import time
+
 from text_processor import extract_text_from_pdf, split_text_into_chunks, summarize_document, answer_question
 from quiz_generator import generate_quiz
 from flashcard_generator import generate_flashcards
@@ -9,96 +12,83 @@ from gtts import gTTS
 
 init_db()
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Study Assistant", layout="wide")
 
-# ---------------- PERFECT CONTRAST UI ----------------
+# ---------------- PREMIUM UI ----------------
 st.markdown("""
 <style>
 
-/* Background */
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #eef6ff, #c7dcff);
 }
 
-/* Text visibility FIX */
-h1, h2, h3, h4, h5, h6, p, label, span, div {
-    color: #f8fafc !important;
+.block-container {
+    max-width: 850px;
+    margin: auto;
 }
 
-/* Subtext */
-small, .stCaption {
-    color: #cbd5e1 !important;
+/* HERO */
+.hero {
+    text-align:center;
+    margin-top:40px;
+    margin-bottom:30px;
 }
 
-/* Inputs FIX */
-.stTextInput input, .stSelectbox div, .stSlider {
-    background: #1e293b !important;
-    color: white !important;
-    border-radius: 10px !important;
+.hero h1 {
+    font-size:42px;
+    font-weight:700;
+    color:#0f172a;
 }
 
-/* Radio buttons FIX */
-.stRadio label {
-    color: #e2e8f0 !important;
-    font-size: 16px;
+.hero p {
+    color:#475569;
 }
 
-/* Buttons */
+/* BUTTON */
 .stButton button {
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
-    color: white;
-    border-radius: 12px;
-    border: none;
-    padding: 10px 20px;
-    font-weight: 500;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    color:white;
+    border-radius:999px;
+    padding:10px 20px;
+    border:none;
 }
 
-/* File uploader FIX */
-[data-testid="stFileUploader"] button {
-    background: rgba(255,255,255,0.2) !important;
-    color: white !important;
-    border: 1px solid rgba(255,255,255,0.4) !important;
+/* CARD */
+.card {
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(10px);
+    padding:20px;
+    border-radius:16px;
+    margin-top:15px;
 }
 
-/* Cards */
-.glass {
-    background: rgba(255,255,255,0.08);
-    padding: 25px;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.2);
-}
-
-/* Answer box */
+/* ANSWER */
             
     # Using the same chunks variable you already defined
     qa_chunks = get_relevanwer-box {
-    background: #14532d;
-    padding: 15px;
-    border-radius: 12px;
-    color: white;
-    margin-top: 10px;
+    background:#dcfce7;
+    padding:12px;
+    border-radius:12px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- HERO ----------------
-st.markdown("<h1 style='text-align:center;'>📚 AI Study Assistant</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center;'>Learn faster. Study smarter.</p>", unsafe_allow_html=True)
+st.markdown("""
+<div class="hero">
+<h1>☁️ AI Study Assistant</h1>
+<p>Calm, focused learning</p>
+</div>
+""", unsafe_allow_html=True)
 
-# ---------------- FEATURES ----------------
-col1, col2, col3 = st.columns(3)
+# ---------------- NAV ----------------
+page = st.sidebar.radio("Navigate", ["Upload", "Summary", "Q&A", "Quiz", "Flashcards"])
 
-col1.markdown('<div class="glass"><h4>🧠 Quiz</h4></div>', unsafe_allow_html=True)
-col2.markdown('<div class="glass"><h4>📄 Summary</h4></div>', unsafe_allow_html=True)
-col3.markdown('<div class="glass"><h4>🧾 Flashcards</h4></div>', unsafe_allow_html=True)
-
-# ---------------- FILE UPLOAD ----------------
+# ---------------- UPLOAD ----------------
 uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True)
 
 if not uploaded_files:
-    st.warning("Upload a PDF to continue")
     st.stop()
 
 # ---------------- PROCESS ----------------
@@ -107,14 +97,16 @@ for file in uploaded_files:
     all_text += " ".join(extract_text_from_pdf(file))
 
 chunks = split_text_into_chunks(all_text)
+context = " ".join(get_relevant_chunks(chunks, "important concepts"))
 
 # ---------------- SUMMARY ----------------
-st.subheader("📄 Summary")
+if page == "Summary":
 
-if "summary" not in st.session_state:
-    st.session_state.summary = summarize_document(all_text)
+    summary = summarize_document(all_text)  # ✅ STORE IT
 
-st.markdown(f'<div class="glass">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.write(summary)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------- AUDIO SUMMARY ----------------
 st.subheader("🔊 Listen to Summary")
@@ -125,26 +117,28 @@ if st.button("Play Summary Audio"):
     tts.save("summary.mp3")
     st.audio("summary.mp3")
 
-# ---------------- CONTEXT ----------------
-topic = st.text_input("Enter topic (optional)")
-query = topic if topic else "important concepts"
-context = " ".join(get_relevant_chunks(chunks, query))
+    # 🔊 TEXT TO SPEECH BUTTON
+    if st.button("🔊 Listen to Summary"):
+        from gtts import gTTS
+
+        tts = gTTS(summary)
+        tts.save("summary.mp3")
+
+        st.audio("summary.mp3")
 
 # ---------------- Q&A ----------------
-st.subheader("❓ Ask Question")
-
-q = st.text_input("Type your question")
-
-if st.button("Get Answer"):
+if page == "Q&A":
+    q = st.text_input("Ask something...")
+    if st.button("Get Answer"):
     try:
         qa_chunks = get_relevant_chunks(chunks, q)
         qa_context = " ".join(qa_chunks)
-        ans = answer_question(qa_context, q)
+            ans = answer_question(qa_context, q)
 
         # Save answer in session state so it persists
         st.session_state.last_answer = ans
 
-        st.markdown(f'<div class="answer-box">{ans}</div>', unsafe_allow_html=True)
+            st.markdown(f"<div class='answer-box'>{ans}</div>", unsafe_allow_html=True)
 
         st.subheader("📄 Source")
         for chunk in qa_chunks:
@@ -161,9 +155,9 @@ if "last_answer" in st.session_state and st.session_state.last_answer:
         st.audio("answer.mp3")
 
 # ---------------- QUIZ ----------------
-st.subheader("🧠 Quiz")
-difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
-num_q = st.slider("Questions", 1, 10, 3)
+if page == "Quiz":
+    difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
+    num_q = st.slider("Questions", 1, 10, 3)
 
 if "quiz" not in st.session_state:
     st.session_state.quiz = None
@@ -244,6 +238,78 @@ if st.session_state.get("quiz_result"):
                 st.markdown(f"**A:** {card['back']}")
     else:
         st.info("✅ You got everything correct! No recommended flashcards needed.")
+    if "quiz" not in st.session_state:
+        st.session_state.quiz = None
+        st.session_state.index = 0
+        st.session_state.answers = []
+        st.session_state.finished = False
+        st.session_state.start = None
+
+    if st.button("Start Quiz"):
+        st.session_state.quiz = generate_quiz(context, difficulty, num_q)
+        st.session_state.index = 0
+        st.session_state.answers = []
+        st.session_state.finished = False
+        st.session_state.start = time.time()
+
+    if st.session_state.quiz and not st.session_state.finished:
+
+        q = st.session_state.quiz[st.session_state.index]
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+        elapsed = int(time.time() - st.session_state.start)
+        st.write(f"⏱ Time: {elapsed}s")
+
+        st.progress((st.session_state.index+1)/len(st.session_state.quiz))
+
+        st.markdown(f"### Question {st.session_state.index+1}/{len(st.session_state.quiz)}")
+        st.write(q["question"])
+
+        # FIX: ensure options show real values
+        options = q["options"]
+
+        selected = st.radio("Choose:", options, key=f"q_{st.session_state.index}")
+
+        if st.button("Next ➡️"):
+            st.session_state.answers.append(selected)
+
+            if st.session_state.index < len(st.session_state.quiz)-1:
+                st.session_state.index += 1
+            else:
+                st.session_state.finished = True
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if st.session_state.finished:
+
+        score = 0
+        total = len(st.session_state.quiz)
+
+        st.markdown("## 📊 Analysis")
+
+        for i, q in enumerate(st.session_state.quiz):
+
+            # FIX: support both formats
+            if len(q["answer"]) == 1 and q["answer"].isalpha():
+                correct = q["options"][ord(q["answer"]) - 65]
+            else:
+                correct = q["answer"]
+
+            user = st.session_state.answers[i]
+
+            if user == correct:
+                score += 1
+                st.success(f"Q{i+1} ✔ Correct")
+            else:
+                st.error(f"Q{i+1} ❌ Your: {user} | Correct: {correct}")
+
+        st.progress(score/total)
+
+        if score == total:
+            st.balloons()
+
+        st.success(f"Score: {score}/{total}")
 
 # ---------------- OVERALL FLASHCARDS ----------------
 st.subheader("📚 Overall Flashcards")
@@ -251,16 +317,39 @@ if "cards" not in st.session_state:
     st.session_state.cards = []
     st.session_state.card_index = 0
     st.session_state.show_answer = False
+# ---------------- FLASHCARDS ----------------
+if page == "Flashcards":
+
+    difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"], key="flash_diff")
+
+    if "cards" not in st.session_state:
+        st.session_state.cards = []
+        st.session_state.index = 0
+        st.session_state.flip = False
 
 if st.button("Generate Overall Flashcards"):
     st.session_state.cards = generate_flashcards(context, difficulty, 10)
     st.session_state.card_index = 0
     st.session_state.show_answer = False
+    if st.button("Generate Flashcards"):
+        st.session_state.cards = generate_flashcards(context, difficulty, 10)
+        st.session_state.index = 0
+        st.session_state.flip = False
 
 if st.session_state.cards:
     card = st.session_state.cards[st.session_state.card_index]
     st.markdown(f"### Card {st.session_state.card_index+1}/{len(st.session_state.cards)}")
     st.markdown(f'<div class="glass">{card["front"]}</div>', unsafe_allow_html=True)
+    if st.session_state.cards:
+        card = st.session_state.cards[st.session_state.index]
+
+        content = card["back"] if st.session_state.flip else card["front"]
+
+        st.markdown(f"""
+        <div class="card" style="text-align:center; font-size:18px;">
+        {content}
+        </div>
+        """, unsafe_allow_html=True)
 
     if st.button("Show Answer"):
         st.session_state.show_answer = True
@@ -316,3 +405,18 @@ if progress:
                 st.success("Excellent — you’re ready for harder topics!")
 else:
     st.info("No performance data yet. Try a quiz or flashcards to see progress here.")
+
+        if st.button("Flip"):
+            st.session_state.flip = not st.session_state.flip
+
+        col1, col2 = st.columns(2)
+
+        if col1.button("Prev"):
+            if st.session_state.index > 0:
+                st.session_state.index -= 1
+                st.session_state.flip = False
+
+        if col2.button("Next"):
+            if st.session_state.index < len(st.session_state.cards)-1:
+                st.session_state.index += 1
+                st.session_state.flip = False
